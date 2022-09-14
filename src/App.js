@@ -160,10 +160,10 @@ const newRandomColor = () => (
 const LengthController = (props) => (
   <div>
     <div className="lengthButtonsContainer">
-      <button disabled={props.numStitches <= 6} onClick={props.addStitches(-5)}>5 Stitches Shorter</button>
       <button disabled={props.numStitches <= 1} onClick={props.addStitches(-1)}>1 Stitch Shorter</button>
       <button onClick={props.addStitches(1)}>1 Stitch Longer</button>
-      <button onClick={props.addStitches(5)}>5 Stitches Longer</button>
+      <button onClick={props.addToColor0(-1)}>Shorter Color 0</button>
+	  <button onClick={props.addToColor0(1)}>Longer Color 0</button>
     </div>
     <div className="choicesSection">
       <label htmlFor="id_stitches">Stitches in a row</label>:
@@ -200,12 +200,21 @@ const Pooler_ = (props) => {
     () => {
       setNumStitches(numStitches + numStitchesDelta)
     };
+  const addToColor0 = numStitchesDelta =>
+    () => {
+		if(+stitchCounts[0]+numStitchesDelta > 0 && +stitchCounts[1]-numStitchesDelta > 0) {
+			const stitchCountsCopy = stitchCounts.map(x => parseInt(x))
+			stitchCountsCopy[0] += numStitchesDelta
+			stitchCountsCopy[1] -= numStitchesDelta
+			setStitchCounts(stitchCountsCopy)
+		}
+    };
 
   const onRadioButtonChange = (e) => e.target.checked && setType(e.target.value)
 
   return (
     <div id="pooler">
-      <LengthController setStitches={setNumStitches} addStitches={addStitches} numStitches={numStitches}/>
+      <LengthController setStitches={setNumStitches} addStitches={addStitches} numStitches={numStitches} addToColor0={addToColor0}/>
       <ColorChoosers colors={colors} stitchCounts={stitchCounts} setColors={setColors}
                      setStitchCounts={setStitchCounts}/>
       <div>
