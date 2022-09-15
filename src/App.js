@@ -9,6 +9,7 @@ import {
 
 import jscolor from "./jscolor";
 import {withRouter} from 'react-router'
+import { useRanger } from 'react-ranger'
 import ColoredSquare from "./ColoredSquare";
 
 const Top = (props) => {
@@ -88,7 +89,7 @@ const ColorChooser = (props) => {
     new jscolor.color(inputElement) // if we don't call this here, the input is not recolered on some changes (e.g. removing one)
     if (!inputElement.doneWithStupidHacks) {
       // haha this kills all the later colors. err, not anymore now that we
-      inputElement.addEventListener('change', (e) => e.target.setColor(e.target.value))
+      inputElement.addEventListener('change', (e) => {e.target.setColor(e.target.value)})
       inputElement.doneWithStupidHacks = true;
     }
   });
@@ -99,7 +100,12 @@ const ColorChooser = (props) => {
       <input id={"colorChooser" + props.i} value={props.color} className="jscolor"
              onChange={(event) => props.setColor(event.target.value)}/>
       Number of stitches: <input value={props.stitchCount}
-                                 onChange={(event) => props.setStitchCount(event.target.value)}/>
+                                 onChange={
+									 (event) => {
+										props.setStitchCount(event.target.value);
+										//props.updateRanger()
+									 }
+								}/>
       <button onClick={props.removeColor} disabled={props.onlyOneColor}>remove this color</button>
     </div>
   )
@@ -123,13 +129,105 @@ const ColorChoosers = (props) => {
       console.log(newColors)
       props.setColors(newColors)
     };
-
+	
   const setStitchCountI = i =>
     (newCount) => {
       const newCounts = [...props.stitchCounts];
-      newCounts[i] = newCount;
+      newCounts[i] = parseInt(newCount);
       props.setStitchCounts(newCounts)
+	  console.log('old: ' + props.stitchCounts)
+	  console.log('new: ' + newCounts)
+	  //updateRanger()
     }
+	
+  const addToLastColor = numStitchesDelta =>
+    () => {
+		const n = props.stitchCounts.length
+		var stitchCountsCopy = props.stitchCounts.map(x => x)
+		var valuesCopy = values.map(x => x)
+		if(+props.stitchCounts[0]+numStitchesDelta > 0) {
+		  stitchCountsCopy[n-1] += numStitchesDelta
+		  props.setStitchCounts(stitchCountsCopy)
+		  valuesCopy[valuesCopy.length-1] += numStitchesDelta
+		  setValues(valuesCopy)
+		}
+    };
+	
+  const cumulativeSums = (array) => {
+	  const n = array.length
+	  if(n === 0) {
+		return []
+	  }
+	  var sums = new Array(n).fill(0)
+	  sums[0] = parseInt(array[0])
+	  for(var i=1; i < n; i++) {
+		  sums[i] = sums[i-1] + parseInt(array[i])
+	  }
+	  return sums
+  }
+  
+  const intermediateCumulativeSums = (array) => {
+	  const n = array.length
+	  if(n === 0) {
+		return []
+	  }
+	  var sums = new Array(n-1).fill(0)
+	  sums[0] = parseInt(array[0])
+	  for(var i=1; i < n-1; i++) {
+		  sums[i] = sums[i-1] + parseInt(array[i])
+	  }
+	  return sums
+  }
+  
+  const arraySum = (array) => {
+	  var sum = 0
+	  for(var i=0; i < array.length; i++) {
+		  sum = sum + parseInt(array[i])
+	  }
+	  return sum
+  }
+  
+  const pairwiseDiffs = (array) => {
+	  const n = array.length
+	  if(n === 0) {
+		return []
+	  }
+	  var diffs = new Array(n).fill(0)
+	  diffs[0] = parseInt(array[0])
+	  for(var i=1; i < n; i++) {
+		  diffs[i] = parseInt(array[i]) - parseInt(array[i-1])
+	  }
+	  return diffs
+  }
+
+  const updateStitchCounts = () => {
+	props.setStitchCounts(pairwiseDiffs(values))
+  }
+  
+  const updateRanger = () => {
+	//setValues(cumulativeSums(props.stitchCounts))
+    //setValues([5,10,15])
+	setValues(props.stitchCounts)
+	console.log(props.stitchCounts)
+	//updateStitchCounts()
+  }
+
+  
+  Array.prototype.subarray = function(start, end) {
+    if (!end) { end = -1; } 
+    return this.slice(start, this.length + 1 - (end * -1));
+  };
+
+  var [values, setValues] = useState(cumulativeSums(props.stitchCounts));
+  
+  const { getTrackProps, handles } = useRanger({
+    min: 0,
+    max: values[values.length-1],
+    stepSize: 1,
+	values: values,
+	onDrag: setValues,
+    onChange: updateStitchCounts
+  })
 
   return (
     <div>
@@ -138,14 +236,76 @@ const ColorChoosers = (props) => {
         <ColorChooser
           setStitchCount={setStitchCountI(i)}
           stitchCount={props.stitchCounts[i]}
+		  updateRanger={updateRanger}
           setColor={setColorI(i)}
           onlyOneColor={props.colors.length === 1}
           removeColor={removeColorI(i)} color={color} i={i}/>))}
       </div>
+	  <br/>
+	  <div
+        {...getTrackProps({
+          style: {
+            height: '2px',
+			width: '500px',
+            background: '#ddd',
+            boxShadow: 'inset 0 1px 2px rgba(0,0,0,.6)',
+            borderRadius: '2px',
+          },
+        })}
+      >
+        {handles.map(({ getHandleProps }) => (
+          <div
+            {...getHandleProps({
+              style: {
+                width: '12px',
+                height: '12px',
+                borderRadius: '100%',
+                background: 'linear-gradient(to bottom, #eee 45%, #ddd 55%)',
+                border: 'solid 1px #888',
+              },
+            })}
+          />
+        ))}
+      </div>
+	  <div>
+        <button onClick={addToLastColor(1)}>longer</button>
+        <button onClick={addToLastColor(-1)}>shorter</button>
+      </div>
+	  <div>
+	  <pre
+        style={{
+          display: "inline-block",
+          textAlign: "left"
+        }}
+      >
+        <code>
+          {JSON.stringify({
+            values
+          })}
+        </code>
+		<input value={values[values.length-1]}
+		 onChange={
+			 (event) => {
+				const n = values.length
+				var valuesCopy = values.map(x => x)
+				const last = values[n-1]
+				const secondLast = values[n-2]
+				console.log('last=' + last + ', secondLast=' + secondLast + ', val=' + event.target.value)
+				if(event.target.value > secondLast) {
+					valuesCopy[n-1] += event.target.value - last
+					setValues(valuesCopy)
+					props.setStitchCounts(pairwiseDiffs(valuesCopy))
+				}				
+				//props.updateRanger()
+			 }
+		}/>
+      </pre>
+	  </div>
       <div className='choicesSection'>
         <button onClick={() => {
           props.setColors([...props.colors, newRandomColor()])
           props.setStitchCounts([...props.stitchCounts, 5])
+		  //updateRanger()
         }
         }>Add a color
         </button>
@@ -173,6 +333,19 @@ const LengthController = (props) => (
 );
 
 const Pooler_ = (props) => {
+  const cumulativeSums = (array) => {
+	  const n = array.length
+	  if(n === 0) {
+		return []
+	  }
+	  var sums = new Array(n).fill(0)
+	  sums[0] = parseInt(array[0])
+	  for(var i=1; i < n; i++) {
+		  sums[i] = sums[i-1] + parseInt(array[i])
+	  }
+	  return sums
+  }
+  
   let stateFromUrl = {};
   if (window.location.hash) {
     stateFromUrl = JSON.parse(decodeURI(window.location.hash.slice(1)));
@@ -183,6 +356,7 @@ const Pooler_ = (props) => {
     (stateFromUrl.colorChoices && stateFromUrl.colorChoices.map(s => s.replace('#', ''))) || ["BF5FFF", "2A1DDE"])
   const [stitchCounts, setStitchCounts] = useState(stateFromUrl.numStitchesChoices || [4, 9])
   const [type, setType] = useState(stateFromUrl.type || 'flat')
+  const [values, setValues] = useState(cumulativeSums(stitchCounts));
 
   console.log(colors)
 
@@ -203,7 +377,7 @@ const Pooler_ = (props) => {
   const addToColor0 = numStitchesDelta =>
     () => {
 		if(+stitchCounts[0]+numStitchesDelta > 0 && +stitchCounts[1]-numStitchesDelta > 0) {
-			const stitchCountsCopy = stitchCounts.map(x => parseInt(x))
+			var stitchCountsCopy = stitchCounts.map(x => parseInt(x))
 			stitchCountsCopy[0] += numStitchesDelta
 			stitchCountsCopy[1] -= numStitchesDelta
 			setStitchCounts(stitchCountsCopy)
@@ -236,6 +410,20 @@ const Pooler_ = (props) => {
         </div>
 
       </div>
+	  <div>
+	  <pre
+        style={{
+          display: "inline-block",
+          textAlign: "left"
+        }}
+      >
+        <code>
+          {JSON.stringify({
+            stitchCounts
+          })}
+        </code>
+      </pre>
+	  </div>
 
       <ColoredSquare
         colors={colors}
